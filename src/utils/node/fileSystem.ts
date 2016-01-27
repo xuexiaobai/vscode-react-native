@@ -4,7 +4,7 @@
 import * as fs from "fs";
 import * as Q from "q";
 
-export class FileSystemUtil {
+export class FileSystem {
 
     public ensureDirectory(dir: string): Q.Promise<void> {
         return Q.nfcall(fs.stat, dir).then((stat: fs.Stats): void => {
@@ -14,7 +14,7 @@ export class FileSystemUtil {
                 throw new Error(`Expected ${dir} to be a directory`);
             }
         }, (err: Error & {code?: string}): Q.Promise<any> => {
-            if (err && err.code === "ENOENT") {
+            if (err && err.code == "ENOENT") {
                 return Q.nfcall(fs.mkdir, dir);
             } else {
                 throw err;
@@ -34,6 +34,35 @@ export class FileSystemUtil {
             } else {
                 throw err;
             }
+        })
+    }
+
+    public fileExistsSync(filename: string) {
+        try {
+            fs.lstatSync(filename);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    public deleteFileIfExistsSync(filename: string) {
+        if (this.fileExistsSync(filename)) {
+            fs.unlinkSync(filename);
+        }
+    }
+
+    public readFile(filename: string, encoding: string): Q.Promise<string> {
+        let contents = Q.defer<string>();
+
+        fs.readFile(filename, encoding, (err: NodeJS.ErrnoException, data: string) => {
+            if (err) {
+                contents.reject(err);
+            } else {
+                contents.resolve(data);
+            }
         });
+
+        return contents.promise;
     }
 }
