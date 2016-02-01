@@ -1,5 +1,5 @@
 import * as websocket from "websocket";
-import {ScriptImporter}  from "./scriptImporter";
+import {ScriptDownloader}  from "./scriptDownloader";
 import {Log} from "../utils/commands/log";
 import {Packager} from "./packager";
 
@@ -29,7 +29,7 @@ export class DebuggerWorker {
                 (<any>global)[key] = JSON.parse(message.inject[key]);
             }
             // importScripts(message.url, cb);
-            new ScriptImporter(this.projectRootPath).import(message.url).done(() => cb());
+            new ScriptDownloader(this.projectRootPath).import(message.url).done(() => cb());
         },
         "executeBridgeJSCall": function(object: any, cb: any) {
             // Other methods get called on the bridge
