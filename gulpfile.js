@@ -13,10 +13,8 @@ var runSequence = require("run-sequence");
 var ts = require('gulp-typescript');
 
 var sources = [
-    'src',
-    'typings',
-].map(function (tsFolder) { return tsFolder + '/**/*.ts'; })
-    .concat(['test/*.ts']);
+    'src'
+].map(function (tsFolder) { return tsFolder + '/**/*.ts'; });
 
 gulp.task('build', function () {
     var tsProject = ts.createProject('src/tsconfig.json');
@@ -51,7 +49,8 @@ gulp.task('tslint', function () {
 });
 
 function test() {
-    throw new Error('No tests yet');
+    return gulp.src('out/tests/**/*.js', { read: false })
+        .pipe(mocha());
 }
 
 gulp.task('build-test', ['build'], test);
