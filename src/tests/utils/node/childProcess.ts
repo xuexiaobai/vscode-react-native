@@ -25,7 +25,7 @@ describe("ChildProcess", function () {
 
     it("should invoke exec correctly", function (): Q.Promise<any> {
         const testExecOptions = {};
-        const testExecCommand = "testcommand"
+        const testExecCommand = "testcommand";
 
         // Mock out child_process with a single-method version purely for testing exec
         mockery.registerMock("child_process", {
@@ -48,7 +48,7 @@ describe("ChildProcess", function () {
 
     it("should report failures correctly", function (): Q.Promise<any> {
         const testExecOptions = {};
-        const testExecCommand = "testcommand"
+        const testExecCommand = "testcommand";
 
         mockery.registerMock("child_process", {
             exec: function (command: string, options: any, cb: (err: Error, stdout: string, stderr: string) => void) {
