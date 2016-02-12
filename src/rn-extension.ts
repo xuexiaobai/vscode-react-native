@@ -43,7 +43,7 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 var counter = 0;
-var needRestart = false;
+// var needRestart = false;
 var justRestarted = false;
 
 /**
@@ -123,24 +123,27 @@ function handleIncomingMessage(requestBody: string): Q.Promise<void> {
             switch (requestBody) {
                 case "/prepare":
                     return prepareEnvironment(path.resolve(vscode.workspace.rootPath));
-                case "/restart":
-                    return Q({})
-                        .then(() => {
-                            if (needRestart) {
-                                justRestarted = true;
-                                vscode.commands.executeCommand("workbench.action.debug.restart");
-                                needRestart = false;
-                            } else {
-                                console.log("Skipping restart...");
-                            }
-                        });
                 case "/restartneeded":
                     if (!justRestarted) {
-                        needRestart = true;
-                    } else {
-                        justRestarted = false;
+                        justRestarted = true;
+                        setTimeout(function() {
+                            justRestarted = false;
+                        }, 3000);
+                        return vscode.commands.executeCommand("workbench.action.debug.restart").then(() => null);
                     }
                     break;
+                case "/restart":
+                // return Q({})
+                //     .then(() => {
+                //         if (needRestart) {
+                //             justRestarted = true;
+                //             vscode.commands.executeCommand("workbench.action.debug.restart");
+                //             needRestart = false;
+                //         } else {
+                //             console.log("Skipping restart...");
+                //         }
+                //     });
+
                 default:
                     return;
             }
