@@ -2,12 +2,19 @@
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
 import {FileSystem} from "./utils/node/fileSystem";
+import * as http from "http";
 import * as path from "path";
 import * as vscode from "vscode";
 import {CommandPaletteHandler} from "./utils/commandPaletteHandler";
 import {ReactNativeProjectHelper} from "./utils/reactNativeProjectHelper";
 import {ReactDirManager} from "./utils/reactDirManager";
 import {TsConfigHelper} from "./utils/tsconfigHelper";
+import * as Q from "q";
+import {Packager} from "./debugger/packager";
+import {Log} from "./utils/commands/log";
+import {PlatformResolver} from "./debugger/platformResolver";
+import {IRunOptions} from "./debugger/launchArgs";
+import * as android from "./debugger/android/androidPlatform";
 
 export function activate(context: vscode.ExtensionContext): void {
     let reactNativeProjectHelper = new ReactNativeProjectHelper(vscode.workspace.rootPath);
@@ -15,6 +22,7 @@ export function activate(context: vscode.ExtensionContext): void {
         if (isRNProject) {
             setupReactNativeDebugger();
             setupReactNativeIntellisense();
+            setupExtensionServer();
             context.subscriptions.push(new ReactDirManager());
         }
     });
@@ -30,6 +38,113 @@ export function activate(context: vscode.ExtensionContext): void {
         () => commandPaletteHandler.startPackager()));
     context.subscriptions.push(vscode.commands.registerCommand("reactNative.stopPackager",
         () => commandPaletteHandler.stopPackager()));
+    context.subscriptions.push(vscode.commands.registerCommand("reactNative.reloadDebugger",
+        () => commandPaletteHandler.restartDebugger()));
+}
+
+var counter = 0;
+var needRestart = false;
+var justRestarted = false;
+
+/**
+ * Sets up the extension message server.
+ */
+function setupExtensionServer(): void {
+    console.log("Setting up extension server......");
+    let requestHandler = (request: http.IncomingMessage, response: http.ServerResponse) => {
+        console.log("Method: " + request.method);
+        console.log("URL: " + request.url);
+        // let body = "";
+        // request.on('readable', function() {
+        //     body += request.read();
+        // });
+        //         request.on('end', function() {
+        //
+        //         });
+        handleIncomingMessage(request.url)
+            .then(() => {
+                return response.end("OK");
+            })
+            .done();
+    }
+
+    let server = http.createServer(requestHandler);
+    server.listen(8099, null, null, () => { console.log("Extension is ready to process messages."); });
+}
+
+function prepareEnvironment(projectRootPath: string): Q.Promise<void> {
+    let resolver = new PlatformResolver();
+    let runOptions = parseRunOptions(projectRootPath);
+    // let mobilePlatform = resolver.resolveMobilePlatform(runOptions.platform);
+    let mobilePlatform = new android.AndroidPlatform();
+
+    let sourcesStoragePath = path.join(projectRootPath, ".vscode", ".react");
+    let packager = new Packager(projectRootPath, sourcesStoragePath);
+
+    return packager.isRunning().then(running => {
+        if (!running) {
+            return Q({})
+                .then(() => packager.start())
+                .then(() => console.log("packager started, prewarming bundle cache"))
+                // We've seen that if we don't prewarm the bundle cache, the app fails on the first attempt to connect to the debugger logic
+                // and the user needs to Reload JS manually. We prewarm it to prevent that issue
+                .then(() => packager.prewarmBundleCache("android"))
+                .then(() => console.log("bundle cache prewarmed, running app"))
+                .then(() => mobilePlatform.runApp(runOptions))
+                .then(() => console.log("application ran. done."))
+                // .then(() => new MultipleLifetimesAppWorker(sourcesStoragePath).start()) // Start the app worker
+                // .then(() => mobilePlatform.enableJSDebuggingMode(runOptions))
+                .catch(reason => {
+                    Log.logError("Cannot debug application.", reason);
+                });
+        }
+    });
+}
+
+/**
+ * Parses the launch arguments set in the launch configuration.
+ */
+function parseRunOptions(projectRootPath: string): IRunOptions {
+    let result: IRunOptions = { projectRoot: projectRootPath };
+
+    if (process.argv.length > 2) {
+        result.platform = process.argv[2].toLowerCase();
+    }
+
+    result.target = process.argv[3];
+    return result;
+}
+
+function handleIncomingMessage(requestBody: string): Q.Promise<void> {
+    console.log("Handling message number: " + counter++);
+    return Q({})
+        .then(() => {
+            console.log("Handling extension message: " + requestBody);
+            switch (requestBody) {
+                case "/prepare":
+                    return prepareEnvironment(path.resolve(vscode.workspace.rootPath));
+                case "/restart":
+                    return Q({})
+                        .then(() => {
+                            if (needRestart) {
+                                justRestarted = true;
+                                vscode.commands.executeCommand("workbench.action.debug.restart");
+                                needRestart = false;
+                            } else {
+                                console.log("Skipping restart...");
+                            }
+                        });
+                case "/restartneeded":
+                    if (!justRestarted) {
+                        needRestart = true;
+                    } else {
+                        justRestarted = false;
+                    }
+                    break;
+                default:
+                    return;
+            }
+        });
 }
 
 /**

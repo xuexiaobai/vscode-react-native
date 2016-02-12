@@ -5,6 +5,7 @@ import * as vm from "vm";
 import * as Q from "q";
 import * as path from "path";
 import * as WebSocket from "ws";
+import * as http from "http";
 import {ScriptImporter}  from "./scriptImporter";
 import {Packager}  from "./packager";
 import {Log, LogLevel} from "../utils/commands/log";
@@ -124,6 +125,9 @@ export class SandboxedAppWorker {
         new ScriptImporter(this.sourcesStoragePath).download(url)
             .then(downloadedScript =>
                 this.runInSandbox(downloadedScript.filepath, downloadedScript.contents))
+            .then(()=>
+                this.sendMessage("restartneeded")
+            )
             .done(() => {
                 // Now we let the reply to the app proceed
                 defer.resolve({});
@@ -136,6 +140,17 @@ export class SandboxedAppWorker {
         // We might need to hold the response until a script is imported. See comments on this.importScripts()
         this.pendingScriptImport.done(() =>
             this.postReplyToApp(object));
+    }
+
+        private sendMessage(message: string): Q.Promise<string> {
+        console.log("Sending post message: " + message);
+        var deferred = Q.defer<string>();
+
+        http.get({ host: "127.0.0.1", port: 8099, path: "/" + message }, (response) => {
+            deferred.resolve(null);
+        });
+
+        return deferred.promise;
     }
 }
 

@@ -9,8 +9,7 @@
 			"args": [
 				"--extensionDevelopmentPath=${workspaceRoot}"
 			],
-			"sourceMaps": true,
-			"outDir": "${workspaceRoot}/out",
+			"sourceMaps": false,
             "preLaunchTask": "build"
         },
         {

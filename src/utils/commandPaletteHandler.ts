@@ -44,6 +44,10 @@ export class CommandPaletteHandler {
         this.executeCommandInContext(() => this.executeReactNativeRunCommand("run-ios"));
     }
 
+    public restartDebugger(): void {
+        vscode.commands.executeCommand("workbench.action.debug.restart");
+    }
+
     /**
      * Executes a react-native command passed after starting the packager
      * {command} The command to be executed

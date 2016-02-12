@@ -75,7 +75,7 @@ export class Packager {
         });
     }
 
-    private isRunning(): Q.Promise<boolean> {
+    public isRunning(): Q.Promise<boolean> {
         let statusURL = `http://${Packager.HOST}/status`;
 
         return new Request().request(statusURL)

@@ -6,7 +6,6 @@
 	"editor.insertSpaces": true,
 	"editor.tabSize": 4,
 	"files.exclude": {
-		"**/node_modules": true,
-		"**/out": true
+		"**/node_modules": true
 	}
 }
