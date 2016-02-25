@@ -15,20 +15,8 @@ export class EntryPoint {
     }
 
     /* This method should wrap any async entry points to the code, so we handle telemetry and error reporting properly */
-    public runCode(taskName: string, errorDescription: string, codeToRun: () => Q.Promise<void>, areErrorsFatal: boolean): void {
+    public runCode(taskName: string, errorDescription: string, codeToRun: () => Q.Promise<void> | void, areErrorsFatal: boolean): void {
         return this.handleErrors(errorDescription, TelemetryHelper.generate(taskName, codeToRun), /*areErrorsFatal*/ areErrorsFatal);
-    }
-
-    /* This method should wrap any 100% sync entry points to the code, so we handle telemetry and error reporting properly */
-    public runSyncCode(taskName: string, errorDescription: string, codeToRun: () => void): void {
-        try {
-            TelemetryHelper.sendSimpleEvent(taskName + ".starting"); // We call sendSimpleEvent because generate is async only
-            codeToRun();
-            TelemetryHelper.sendSimpleEvent(taskName + ".succesfull");
-        } catch (error) {
-            Log.logError(errorDescription, error, this.outputChannel, /*logStack*/ true);
-            TelemetryHelper.sendSimpleEvent(taskName + ".failed");
-        }
     }
 
     /* This method should wrap the entry point of the whole app, so we handle telemetry and error reporting properly */

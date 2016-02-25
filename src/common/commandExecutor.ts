@@ -5,9 +5,10 @@ import * as Q from "q";
 import {ChildProcess} from "child_process";
 import {Log} from "./log";
 import {Node} from "./node/node";
-import {ISpawnResult, IExecRejection} from "./node/childProcess";
+import {ISpawnResult} from "./node/childProcess";
 import {OutputChannel} from "vscode";
 import {NestedError} from "./nestedError";
+import {RejectionError} from "./rejectionError";
 
 interface EnvironmentOptions {
     REACT_DEBUGGER?: string;
@@ -31,8 +32,8 @@ export class CommandExecutor {
                 Log.logMessage(stdout);
                 Log.commandEnded(command);
             },
-            (reason: IExecRejection) =>
-                this.rejectionForCommand(command, reason.error));
+            reason =>
+                this.rejectionForCommand(command, reason));
     }
 
     /**
@@ -75,7 +76,7 @@ export class CommandExecutor {
 
         let result = new Node.ChildProcess().spawn(command, runArguments, spawnOptions);
         result.spawnedProcess.once("error", (error: any) => {
-            deferred.reject({ error: error });
+            deferred.reject(RejectionError.create(error));
         });
 
         result.stderr.on("data", (data: Buffer) => {
