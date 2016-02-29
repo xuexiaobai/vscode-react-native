@@ -33,7 +33,7 @@ export class CommandExecutor {
                 Log.commandEnded(command);
             },
             reason =>
-                this.rejectionForCommand(command, reason));
+                this.generateRejectionForCommand(command, reason));
     }
 
     /**
@@ -95,7 +95,7 @@ export class CommandExecutor {
             }
         });
 
-        // TODO - PROMISE: We need to consume result.outcome here
+        // TODO #83 - PROMISE: We need to consume result.outcome here
         Q.delay(300).done(() => deferred.resolve(result.spawnedProcess));
         return deferred.promise;
     }
@@ -182,12 +182,12 @@ export class CommandExecutor {
             () =>
                 Log.commandEnded(commandWithArgs, outputChannel),
             reason =>
-                this.rejectionForCommand(command, reason));
+                this.generateRejectionForCommand(command, reason));
 
         return result;
     }
 
-    private rejectionForCommand(command: string, reason: any): Q.Promise<void> {
+    private generateRejectionForCommand(command: string, reason: any): Q.Promise<void> {
         return Q.reject<void>(new NestedError(`Error while executing: ${command}`, reason));
     }
 }
