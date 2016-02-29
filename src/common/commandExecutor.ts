@@ -8,7 +8,6 @@ import {Node} from "./node/node";
 import {ISpawnResult} from "./node/childProcess";
 import {OutputChannel} from "vscode";
 import {NestedError} from "./nestedError";
-import {RejectionError} from "./rejectionError";
 
 interface EnvironmentOptions {
     REACT_DEBUGGER?: string;
@@ -76,7 +75,7 @@ export class CommandExecutor {
 
         let result = new Node.ChildProcess().spawn(command, runArguments, spawnOptions);
         result.spawnedProcess.once("error", (error: any) => {
-            deferred.reject(RejectionError.create(error));
+            deferred.reject(new NestedError(`Error while executing ${command}`, error));
         });
 
         result.stderr.on("data", (data: Buffer) => {
