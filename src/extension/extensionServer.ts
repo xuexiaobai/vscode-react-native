@@ -23,6 +23,7 @@ export class ExtensionServer implements vscode.Disposable {
     private reactNativePackageStatusIndicator: PackagerStatusIndicator;
     private pipePath: string;
     private logCatMonitor: LogCatMonitor = null;
+    private isOnAttachOnlyMode = false;
 
     public constructor(projectRootPath: string, reactNativePackager: Packager, packagerStatusIndicator: PackagerStatusIndicator) {
 
@@ -38,6 +39,8 @@ export class ExtensionServer implements vscode.Disposable {
         this.messageHandlerDictionary[em.ExtensionMessage.STOP_MONITORING_LOGCAT] = this.stopMonitoringLogCat;
         this.messageHandlerDictionary[em.ExtensionMessage.GET_PACKAGER_PORT] = this.getPackagerPort;
         this.messageHandlerDictionary[em.ExtensionMessage.SEND_TELEMETRY] = this.sendTelemetry;
+        this.messageHandlerDictionary[em.ExtensionMessage.ATTACH_TO_RUNNING_APP] = this.attachToRunningApp;
+        this.messageHandlerDictionary[em.ExtensionMessage.QUERY_ATTACH_ONLY_MODE] = this.queryAttachOnlyMode;
     }
 
     /**
@@ -105,6 +108,16 @@ export class ExtensionServer implements vscode.Disposable {
      */
     private prewarmBundleCache(platform: string): Q.Promise<any> {
         return this.reactNativePackager.prewarmBundleCache(platform);
+    }
+
+    private attachToRunningApp(): Q.Promise<void> {
+        return Q(vscode.commands.executeCommand("workbench.action.debug.start")).then(() => {});
+    }
+
+    private queryAttachOnlyMode(): Q.Promise<boolean> {
+        const currentValue = this.isOnAttachOnlyMode;
+        this.isOnAttachOnlyMode = false;
+        return currentValue;
     }
 
     /**

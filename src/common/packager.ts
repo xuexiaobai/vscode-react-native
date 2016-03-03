@@ -22,7 +22,7 @@ export class Packager {
     private port: number;
     private packagerProcess: ChildProcess;
 
-    private static JS_INJECTOR_FILENAME = "opn-main.js";
+    private static JS_INJECTOR_FILENAME = "opn-main-v2.js";
     private static JS_INJECTOR_FILEPATH = path.resolve(path.dirname(path.dirname(__dirname)), "js-patched", Packager.JS_INJECTOR_FILENAME);
     private static NODE_MODULES_FODLER_NAME = "node_modules";
     private static OPN_PACKAGE_NAME = "opn";
@@ -55,7 +55,7 @@ export class Packager {
                     return this.monkeyPatchOpnForRNPackager()
                         .then(() => {
                             let args = ["--port", port.toString()];
-                            let childEnvForDebugging = Object.assign({}, process.env, { REACT_DEBUGGER: "echo A debugger is not needed: " });
+                            let childEnvForDebugging = Object.assign({}, process.env, { REACT_DEBUGGER: this.debugFromAppCommand() });
 
                             Log.logMessage("Starting Packager");
                             // The packager will continue running while we debug the application, so we can"t
@@ -181,5 +181,12 @@ export class Packager {
             this.port = null;
             return Q.resolve<void>(void 0);
         });
+    }
+
+    private debugFromAppCommand(): string {
+        const nodeLocation = "node";
+        const vsCodeLocation = process.argv[0];
+        const launchFromAppLocation = path.join(__dirname, "..", "debugger", "launchFromApp.js");
+        return `${nodeLocation} "${launchFromAppLocation}" "${vsCodeLocation}" `;
     }
 }

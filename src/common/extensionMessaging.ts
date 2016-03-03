@@ -16,6 +16,8 @@ export enum ExtensionMessage {
     STOP_MONITORING_LOGCAT,
     GET_PACKAGER_PORT,
     SEND_TELEMETRY,
+    ATTACH_TO_RUNNING_APP,
+    QUERY_ATTACH_ONLY_MODE
 }
 
 export interface MessageWithArguments {
