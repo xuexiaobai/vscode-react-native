@@ -2,20 +2,23 @@
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
 import * as Q from "q";
+import * as assert from "assert";
 import * as child_process from "child_process";
 import * as stream from "stream";
 import * as events from "events";
 
 import {ISpawnResult, ChildProcess} from "../../common/node/childProcess";
+import {PromiseUtil} from "../../common/node/promise";
 
 import {IStdOutEvent, IStdErrEvent, IErrorEvent, IExitEvent, ICustomEvent} from "./processExecutionEvents";
 import * as processExecutionEvents from "./processExecutionEvents";
 
 export type IEventArguments = processExecutionEvents.IEventArguments;
+export type ProcessExecutionRecording = processExecutionEvents.ProcessExecutionRecording;
 
 export interface ISimulationResult {
     simulatedProcess: child_process.ChildProcess;
-    simulationEnded: Q.Promise<void>;
+    simulationEnded: Q.Promise<void>| void;
 }
 
 class FakeStream extends events.EventEmitter {
@@ -44,10 +47,27 @@ class FakeChildProcess extends events.EventEmitter implements child_process.Chil
     }
 }
 
+
+export interface IOutputBasedSideEffectDefinition {
+    pattern: RegExp;
+    action: () => Q.Promise<void>;
+}
+
+export interface ISideEffectsDefinition {
+    beforeStart: () => Q.Promise<void>;
+    outputBased: IOutputBasedSideEffectDefinition[];
+    beforeSuccess: (stdout: string, stderr: string) => Q.Promise<void>;
+}
+
 export class ProcessExecutionSimulator {
     private process = new FakeChildProcess();
 
     private allSimulatedEvents: IEventArguments[] = [];
+    private allStdout = "";
+    private allStderr = "";
+
+    constructor(private sideEffectsDefinition: ISideEffectsDefinition) {
+    }
 
     public spawn(): ISpawnResult {
         const fakeChildProcessModule = <typeof child_process><any>{ spawn: () => {
@@ -57,48 +77,80 @@ export class ProcessExecutionSimulator {
         return new ChildProcess({childProcess: fakeChildProcessModule}).spawnWaitUntilFinished("", []);
     }
 
-    public simulateAll(events: IEventArguments[]): Q.Promise<void> {
-        let simulation = Q.resolve<void>(void 0);
-
-        events.forEach(event => { // Execute one event after the other one
-            simulation = simulation.then(() => this.simulate(event));
+    public simulate(recording: ProcessExecutionRecording): Q.Promise<void> {
+        assert(recording, "recording shouldn't be null");
+        return this.sideEffectsDefinition.beforeStart().then(() => {
+            return this.simulateAllEvents(recording.events);
         });
+    }
 
-        return simulation;
+    public simulateAllEvents(events: IEventArguments[]): Q.Promise<void> {
+        return new PromiseUtil().reduce(events, (event: IEventArguments) => this.simulateSingleEvent(event));
     }
 
     public getAllSimulatedEvents(): IEventArguments[] {
         return this.allSimulatedEvents;
     };
 
-    private simulate(event: IEventArguments): Q.Promise<void> {
+    private simulateOutputSideEffects(data: string): Q.Promise<void> {
+        const applicableSideEffectDefinitions: { index: number, definition: IOutputBasedSideEffectDefinition }[] = [];
+
+        this.sideEffectsDefinition.outputBased.forEach(definition => {
+            const match = data.match(definition.pattern);
+            if (match) {
+                applicableSideEffectDefinitions.push({
+                    index: match.index,
+                    definition: definition
+                });
+            }
+        });
+
+        // Sort by index, so the action matching the earlier text gets executed first
+        applicableSideEffectDefinitions.sort((a, b) => a.index - b.index);
+
+        return new PromiseUtil().reduce(applicableSideEffectDefinitions, definition => definition.definition.action());
+    }
+
+    private simulateSingleEvent(event: IEventArguments): Q.Promise<void> {
         /* TODO: Implement proper timing logic based on return Q.delay(event.at).then(() => {
             using sinon fake timers to simulate time passing */
         return Q.delay(0).then(() => {
             this.allSimulatedEvents.push(event);
-            Object.keys(event).forEach(key => {
-                if (key !== "after") {
-                    switch (key) {
-                        case "stdout":
-                            this.process.stdout.emit("data", new Buffer((<IStdOutEvent>event).stdout.data));
-                            break;
-                        case "stderr":
-                            this.process.stderr.emit("data", new Buffer((<IStdErrEvent>event).stderr.data));
-                            break;
-                        case "error":
-                            this.process.emit("error", (<IErrorEvent>event).error.error);
-                            break;
-                        case "exit":
-                            this.process.emit("exit", (<IExitEvent>event).exit.code);
-                            break;
-                        case "custom":
-                            (<ICustomEvent>event).custom.lambda();
-                            break;
-                        default:
-                            throw new Error(`Unknown event to simulate: ${key} from:\n\t${event}`);
-                    }
+            const key = Object.keys(event).find(eventKey => eventKey !== "after"); // At the moment we are only using a single key/parameter per event
+            switch (key) {
+                case "stdout": {
+                    const data = (<IStdOutEvent>event).stdout.data;
+                    this.allStdout += data;
+                    return this.simulateOutputSideEffects(data).then(() => {
+                        this.process.stdout.emit("data", new Buffer(data));
+                    });
                 }
-            });
+                case "stderr": {
+                    const data = (<IStdErrEvent>event).stderr.data;
+                    this.allStderr += data;
+                    this.process.stderr.emit("data", new Buffer(data));
+                    break;
+                }
+                case "error":
+                    this.process.emit("error", (<IErrorEvent>event).error.error);
+                    break;
+                case "exit":
+                    const code = (<IExitEvent>event).exit.code;
+
+                    let beforeFinishing = Q<void>(void 0);
+                    if (code === 0) {
+                        beforeFinishing = Q(this.sideEffectsDefinition.beforeSuccess(this.allStdout, this.allStderr));
+                    }
+
+                    return beforeFinishing.then(() => {
+                        this.process.emit("exit", code);
+                    });
+                case "custom":
+                    return (<ICustomEvent>event).custom.lambda();
+                default:
+                    throw new Error(`Unknown event to simulate: ${key} from:\n\t${event}`);
+            }
+            return Q.resolve<void>(void 0);
         });
     }
 }

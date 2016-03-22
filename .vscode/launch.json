@@ -107,7 +107,7 @@
             // Command line arguments passed to the program.
             "args": [
                 "--ui", "tdd",
-                // "--grep", "androidPlatform"
+                // "--grep", "androidPlatform",
                 "out/test/debugger/**/*.test.js"
             ],
             "cwd": "${workspaceRoot}",

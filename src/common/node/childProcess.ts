@@ -6,6 +6,9 @@ import Q = require("q");
 import {ErrorHelper} from "../error/errorHelper";
 import {InternalErrorCode} from "../error/internalErrorCode";
 
+import {ProcessExecutionRecorder} from "../../test/resources/processExecutionRecorder";
+ProcessExecutionRecorder.installGlobalRecorder();
+
 export interface IExecResult {
     process: child_process.ChildProcess;
     outcome: Q.Promise<Buffer>;

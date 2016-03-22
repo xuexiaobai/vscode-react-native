@@ -7,16 +7,51 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import {ITimedEvent, IEventArguments} from "./processExecutionEvents";
+interface IExecOptions {
+    cwd?: string;
+    stdio?: any;
+    env?: any;
+    encoding?: string;
+    timeout?: number;
+    maxBuffer?: number;
+    killSignal?: string;
+}
+
+interface ISpawnOptions {
+    cwd?: string;
+    stdio?: any;
+    env?: any;
+    detached?: boolean;
+}
+
+import {ITimedEvent, IEventArguments, ProcessExecutionRecording,
+    IAndroidDevice, IIOSDevice, ISpawnArguments} from "./processExecutionEvents";
 
 /* We use this class to capture the behavior of a ChildProces running inside of node, so we can store all the
    visible events and side-effects of that process, and then we can perfectly reproduce them in a test by using
    the ProcessExecutionSimulator class */
 export class ProcessExecutionRecorder {
-    private events: ITimedEvent[] = [];
+    private static originalSpawn: (command: string, args: string[], options: ISpawnOptions) => child_process.ChildProcess;
+
+    private recording: ProcessExecutionRecording;
     private previousEventTimestamp: number;
 
-    constructor(private processExecution: child_process.ChildProcess, private filePath = ProcessExecutionRecorder.defaultFilePath()) {
+    public static installGlobalRecorder(): void {
+        if (!this.originalSpawn) {
+            this.originalSpawn = child_process.spawn;
+            child_process.spawn = this.recordAndSpawn.bind(this);
+        }
+    }
+
+    public static recordAndSpawn(command: string, args?: string[], options: ISpawnOptions = {}): child_process.ChildProcess {
+        const spawnedProcess = this.originalSpawn(command, args, options);
+        new ProcessExecutionRecorder(spawnedProcess, {command, args, options}).record();
+        return spawnedProcess;
+    }
+
+    constructor(private processExecution: child_process.ChildProcess, spawnArguments: ISpawnArguments,
+                private filePath = ProcessExecutionRecorder.defaultFilePath()) {
+        this.initializeRecording(spawnArguments);
     }
 
     public record(): void {
@@ -29,6 +64,30 @@ export class ProcessExecutionRecorder {
         this.processExecution.on("exit", () =>
             this.store());
         this.previousEventTimestamp = this.now();
+    }
+
+    private initializeRecording(spawnArguments: ISpawnArguments): void {
+        this.recording = {
+            title: "TBD",
+            arguments: spawnArguments,
+            date: new Date(),
+            configuration: {
+                os: { platform: os.platform(), release: os.release() },
+                android: {
+                    sdk: { tools: "TBD", platformTools: "TBD", buildTools: "TBD", repositoryForSupportLibraries: "TBD" },
+                    intelHAXMEmulator: "TBD",
+                    visualStudioEmulator: "TBD"
+                },
+                reactNative: "TBD",
+                node: "TBD",
+                npm: "TBD"
+            },
+            state: {
+                reactNative: { packager: "TBD" },
+                devices: { android: <IAndroidDevice[]>[], ios: <IIOSDevice[]>[]}
+            },
+            events: <IEventArguments[]>[]
+        };
     }
 
     private static defaultFilePath(): string {
@@ -45,14 +104,14 @@ export class ProcessExecutionRecorder {
             const now = this.now();
             const relativeTimestamp = now - this.previousEventTimestamp;
             this.previousEventTimestamp = now;
-            this.events.push(this.generateEvent(relativeTimestamp, storedEventName, argumentName, argumentsConverter(argument)));
+            this.recording.events.push(this.generateEvent(relativeTimestamp, storedEventName, argumentName, argumentsConverter(argument)));
         });
     }
 
-    private generateEvent(relativeTimestamp: number, eventName: string, argumentName: string, argument: any): ITimedEvent {
+    private generateEvent(relativeTimestamp: number, eventName: string, argumentName: string, argument: any): IEventArguments {
         const event: ITimedEvent = { after: relativeTimestamp };
         (<any>event)[eventName] = this.generateEventArguments(argumentName, argument);
-        return event;
+        return <IEventArguments>event;
     }
 
     private generateEventArguments(argumentName: string, argument: any): IEventArguments {
@@ -62,6 +121,6 @@ export class ProcessExecutionRecorder {
     }
 
     private store(): void {
-        fs.appendFileSync(this.filePath, JSON.stringify(this.events) + "\n\n\n", "utf8");
+        fs.appendFileSync(this.filePath, JSON.stringify(this.recording) + "\n\n\n", "utf8");
     }
 }

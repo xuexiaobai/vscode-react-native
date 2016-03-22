@@ -28,3 +28,68 @@ export interface ICustomEvent extends ITimedEvent {
 }
 
 export type IEventArguments = IStdOutEvent | IStdErrEvent | IErrorEvent | IExitEvent | ICustomEvent;
+
+export interface MachineConfiguration {
+    os: { platform: string, release: string };
+    android: {
+        sdk: { tools: string, platformTools: string, buildTools: string, repositoryForSupportLibraries: string };
+        intelHAXMEmulator: string;
+        visualStudioEmulator: string;
+    };
+    reactNative: string;
+    node: string;
+    npm: string;
+}
+
+/* tslint:disable:no-bitwise no-unused-expression */
+export type PackagerStatus = "Running" | "NotRunning" | "TBD";
+
+export type AndroidDeviceType = "AndroidSDKEmulatorDevice" | "VisualStudioEmulatorDevice" | "PhysicalDevice";
+
+export type AppStatusInDevice = "NotInstalled" | "Installed" | "Running" | "Debugging" | "TBD";
+
+export type IIOSDeviceType = "TBD";
+/* tslint:enable:no-bitwise no-unused-expression */
+
+export interface IAndroidDevice {
+    id: string;
+    type: AndroidDeviceType;
+    hardware: string;
+    os: string;
+    api: number;
+    otherSpecs: string;
+    appStatus: AppStatusInDevice;
+}
+
+export interface IIOSDevice {
+    id: string;
+    type: IIOSDeviceType;
+    appStatus: AppStatusInDevice;
+}
+
+export interface MachineState {
+    reactNative: { packager: PackagerStatus };
+    devices: { android: IAndroidDevice[], ios: IIOSDevice[] };
+}
+
+interface ISpawnOptions {
+    cwd?: string;
+    stdio?: any;
+    env?: any;
+    detached?: boolean;
+}
+
+export interface ISpawnArguments {
+    command: string;
+    args: string[];
+    options: ISpawnOptions;
+}
+
+export interface ProcessExecutionRecording {
+    title: string;
+    arguments: ISpawnArguments;
+    date: Date;
+    configuration: MachineConfiguration;
+    state: MachineState;
+    events: IEventArguments[];
+}

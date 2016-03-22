@@ -18,12 +18,22 @@ import "should";
 
 // TODO: Launch the extension server and test the logcat functionality
 
+interface TestUsingRecording {
+    (expectation: string, recordingNames: string[], assertion?: () => void): Mocha.ITest;
+    (expectation: string, recordingNames: string[], assertion?: (done: MochaDone) => void): Mocha.ITest;
+    only(expectation: string, recordingNames: string[], assertion?: () => void): Mocha.ITest;
+    only(expectation: string, recordingNames: string[], assertion?: (done: MochaDone) => void): Mocha.ITest;
+    skip(expectation: string, recordingNames: string[], assertion?: () => void): void;
+    skip(expectation: string, recordingNames: string[], assertion?: (done: MochaDone) => void): void;
+}
+
 suite("androidPlatform", function() {
+    this.timeout(60 * 1000); // TODO: DIEGO REMOVE THIS
     suite("debuggerContext", function() {
-        const projectRoot = "C:/projects/myAwesomeRNApp/";
+        const projectRoot = "C:/projects/SampleApplication_21/";
         const androidProjectPath = path.join(projectRoot, "android");
-        const applicationName = "MyAmazingAppImTryingToLaunch";
-        const androidPackageName = "com.myamazingappimtryingtolaunch";
+        const applicationName = "SampleApplication";
+        const androidPackageName = "com.sampleapplication";
         const genericRunOptions: IRunOptions = { projectRoot: projectRoot };
 
         let fileSystem: FileSystem;
@@ -47,6 +57,18 @@ suite("androidPlatform", function() {
             return reactNative.createProject(projectRoot, applicationName);
         });
 
+        const testWithRecordings: TestUsingRecording = <TestUsingRecording>((testName: string, recordingNames: string[], code: () => Q.Promise<void>): void => {
+            recordingNames.forEach(recordingName => {
+                test(`${testName} using recording ${recordingName}`, () => {
+                    return reactNative.loadRecordingFromName(recordingName).then(code);
+                });
+            });
+        });
+
+        testWithRecordings.skip = (expectation: string, recordingNames: string[], assertion?: (done: MochaDone) => void) => {
+            test.skip(expectation, assertion);
+        };
+
         function shouldHaveReceivedSingleLogCatMessage(deviceId: string): void {
             const expectedMessage = { message: ExtensionMessage.START_MONITORING_LOGCAT, args: [ deviceId ]};
 
@@ -60,7 +82,8 @@ suite("androidPlatform", function() {
             fakeExtensionMessageSender.getAllMessagesSent().should.eql([]);
         }
 
-        test("runApp launches the app when a single emulator is connected", function() {
+        testWithRecordings("runApp launches the app when a single emulator is connected",
+                           ["react-native/run-android/win10-rn0.22/succedsWithOneVSEmulator"], () => {
             return Q({})
                 .then(() => {
                     return simulatedAVDManager.createAndLaunch("Nexus_5");
@@ -74,7 +97,8 @@ suite("androidPlatform", function() {
                 });
         });
 
-        test("runApp launches the app when two emulators are connected", function() {
+        testWithRecordings("runApp launches the app when two emulators are connected",
+                           ["react-native/run-android/win10-rn0.22/succedsWithTwoVSEmulators"], () => {
             return Q({})
                 .then(() => {
                     return simulatedAVDManager.createAndLaunchAll("Nexus_5", "Nexus_6");
@@ -91,7 +115,8 @@ suite("androidPlatform", function() {
                 });
         });
 
-        test("runApp launches the app when three emulators are connected", function() {
+        testWithRecordings("runApp launches the app when three emulators are connected",
+                           ["react-native/run-android/win10-rn0.22/succedsWithThreeVSEmulators"], () => {
             return Q({})
                 .then(() => {
                     return simulatedAVDManager.createAndLaunchAll("Nexus_5", "Nexus_6", "Other_Nexus_6");
@@ -112,7 +137,8 @@ suite("androidPlatform", function() {
                 });
         });
 
-        test("runApp fails if no devices are connected", function() {
+        testWithRecordings("runApp fails if no devices are connected",
+                           ["react-native/run-android/win10-rn0.22/failsDueToNoDevicesConnected"], () => {
             return Q({})
                 .then(() => {
                     return androidPlatform.runApp(genericRunOptions);
@@ -124,7 +150,8 @@ suite("androidPlatform", function() {
                 });
         });
 
-        test("runApp launches the app in an online emulator only", function() {
+        testWithRecordings("runApp launches the app in an online emulator only",
+                           ["react-native/run-android/win10-rn0.22/succedsWithFiveVSEmulators"], () => {
             return Q({})
                 .then(() => {
                     return simulatedAVDManager.createAndLaunchAll("Nexus_5", "Nexus_6", "Nexus_10", "Nexus_11", "Nexus_12");
@@ -140,7 +167,8 @@ suite("androidPlatform", function() {
                 });
         });
 
-        test("runApp launches the app in the device specified as target", function() {
+        testWithRecordings("runApp launches the app in the device specified as target",
+                           ["react-native/run-android/win10-rn0.22/succedsWithFiveVSEmulators"], () => {
             return Q({})
                 .then(() => {
                     return simulatedAVDManager.createAndLaunchAll("Nexus_5", "Nexus_6", "Nexus_10", "Nexus_11", "Nexus_12");
@@ -155,7 +183,8 @@ suite("androidPlatform", function() {
                 });
         });
 
-        test("runApp launches the app in a random online device if the target is offline", function() {
+        testWithRecordings("runApp launches the app in a random online device if the target is offline",
+                           ["react-native/run-android/win10-rn0.22/succedsWithTenVSEmulators"], () => {
             return Q({})
                 .then(() => {
                     return simulatedAVDManager.createAndLaunchAll("Nexus_5", "Nexus_6", "Nexus_10", "Nexus_11", "Nexus_12",
@@ -176,7 +205,8 @@ suite("androidPlatform", function() {
                 });
         });
 
-        test("runApp doesn't fail even if the call to start the LogCat does fail", function() {
+        testWithRecordings("runApp doesn't fail even if the call to start the LogCat does fail",
+                           ["react-native/run-android/win10-rn0.22/succedsWithOneVSEmulator"], () => {
             fakeExtensionMessageSender.setMessageResponse(Q.reject<void>("Unknown error"));
 
             return Q({})
@@ -192,7 +222,8 @@ suite("androidPlatform", function() {
                 });
         });
 
-        test("runApp fails when the android project doesn't exist, and shows a nice error message", function() {
+        testWithRecordings("runApp fails when the android project doesn't exist, and shows a nice error message",
+                           ["react-native/run-android/win10-rn0.22/failsDueToAndroidFolderMissing"], () => {
             return Q({})
                 .then(() => {
                     return fileSystem.rmdir(androidProjectPath);
@@ -212,12 +243,13 @@ suite("androidPlatform", function() {
                 });
         });
 
-        test("runApp fails when the android emulator shell is unresponsive, and shows a nice error message", function() {
+        testWithRecordings("runApp fails when the android emulator shell is unresponsive, and shows a nice error message",
+                           ["react-native/run-android/win10-rn0.22/fillsomething"], () => {
             return Q({})
                 .then(() => {
                     return simulatedAVDManager.createAndLaunch("Nexus_5");
                 }).then(() => {
-                    reactNative.forceUnresponsiveShellError();
+                    // DIEGO TODO: reactNative.forceUnresponsiveShellError();
                     return androidPlatform.runApp(genericRunOptions);
                 }).then(() => {
                     should.assert(false, "Expected runApp to end up with an error");
