@@ -12,6 +12,7 @@ import {Log} from "../common/log/log";
 import {LogLevel} from "../common/log/logHelper";
 import {FileSystem} from "../common/node/fileSystem";
 import {ExecutionsLimiter} from "../common/executionsLimiter";
+import {measure} from "../common/node/measureTimeTaken";
 
 import Module = require("module");
 
@@ -182,6 +183,7 @@ export class MultipleLifetimesAppWorker {
         this.webSocketConstructor = webSocketConstructor;
     }
 
+    @measure()
     public start(warnOnFailure: boolean = false): Q.Promise<any> {
         return this.createSocketToApp(warnOnFailure);
     }

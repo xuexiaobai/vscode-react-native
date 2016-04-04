@@ -13,6 +13,7 @@ import {IDeviceHelper, DeviceHelper, IDevice} from "../../common/android/deviceH
 import {Package} from "../../common/node/package";
 import {FileSystem} from "../../common/node/fileSystem";
 import {IReactNative, ReactNative} from "../../common/reactNative";
+import {measure} from "../../common/node/measureTimeTaken";
 
 /**
  * Android specific platform implementation for debugging RN applications.
@@ -51,6 +52,7 @@ export class AndroidPlatform implements IAppPlatform {
         this.fileSystem = fileSystem;
     }
 
+    @measure()
     public runApp(runOptions: IRunOptions): Q.Promise<void> {
         const runAndroidSpawn = this.reactNative.runAndroid(runOptions.projectRoot);
         const output = new OutputVerifier(
@@ -79,6 +81,7 @@ export class AndroidPlatform implements IAppPlatform {
                     Log.logWarning("Couldn't start LogCat monitor", error)));
     }
 
+    @measure()
     public enableJSDebuggingMode(runOptions: IRunOptions): Q.Promise<void> {
         return this.deviceHelper.reloadAppInDebugMode(runOptions.projectRoot, this.packageName, this.debugTarget);
     }

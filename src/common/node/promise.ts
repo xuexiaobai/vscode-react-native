@@ -33,6 +33,14 @@ export class PromiseUtil {
         });
     }
 
+    /* Execute a callback after the promise or value is resolved. If promiseOrValue is a value the callback will
+       be called synchronically. If it's a promise it'll be called asynchronically. */
+    public executeAfter<T>(promiseOrValue: Q.Promise<T> | T, callback: (value: T) => void): Q.Promise<void> | void {
+        return Q.isPromise(promiseOrValue)
+            ? (<Q.Promise<T>>promiseOrValue).then(callback)
+            : callback(<T>promiseOrValue);
+    }
+
     private retryAsyncIteration<T>(operation: () => Q.Promise<T>, condition: (result: T) => boolean | Q.Promise<boolean>, maxRetries: number, iteration: number, delay: number, failure: string): Q.Promise<T> {
         return operation()
             .then(result => {

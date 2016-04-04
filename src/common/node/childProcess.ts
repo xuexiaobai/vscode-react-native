@@ -5,6 +5,7 @@ import * as nodeChildProcess from "child_process";
 import Q = require("q");
 import {ErrorHelper} from "../error/errorHelper";
 import {InternalErrorCode} from "../error/internalErrorCode";
+import {measure} from "./measureTimeTaken";
 
 export interface IExecResult {
     process: nodeChildProcess.ChildProcess;
@@ -45,6 +46,7 @@ export class ChildProcess {
         this.childProcess = childProcess;
     }
 
+    @measure("outcome")
     public exec(command: string, options: IExecOptions = {}): IExecResult {
         let outcome = Q.defer<Buffer>();
 
@@ -63,6 +65,7 @@ export class ChildProcess {
         return this.exec(command, options).outcome.then(stdout => stdout.toString());
     }
 
+    @measure("outcome")
     public spawn(command: string, args: string[] = [], options: ISpawnOptions = {}): ISpawnResult {
         const startup = Q.defer<void>();
         const outcome = Q.defer<void>();

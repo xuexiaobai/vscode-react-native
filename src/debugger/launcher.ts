@@ -10,10 +10,11 @@ import {ErrorHelper} from "../common/error/errorHelper";
 import {InternalErrorCode} from "../common/error/internalErrorCode";
 import {ScriptImporter} from "./scriptImporter";
 import {PlatformResolver} from "./platformResolver";
-import {TelemetryHelper} from "../common/telemetryHelper";
+import {TelemetryHelper, TelemetryGenerator} from "../common/telemetryHelper";
 import {IRunOptions} from "../common/launchArgs";
 import * as em from "../common/extensionMessaging";
 import {EntryPointHandler} from "../common/entryPointHandler";
+import {measure} from "../common/node/measureTimeTaken";
 
 export class Launcher {
     private projectRootPath: string;
@@ -26,49 +27,53 @@ export class Launcher {
         // Enable telemetry
         new EntryPointHandler(true).runApp("react-native-debug-process", () => this.getAppVersion(),
             ErrorHelper.getInternalError(InternalErrorCode.DebuggingFailed), () => {
-            return TelemetryHelper.generate("launch", (generator) => {
-                const resolver = new PlatformResolver();
-                const runOptions = this.parseRunOptions();
-                const mobilePlatform = resolver.resolveMobilePlatform(runOptions.platform);
-                if (!mobilePlatform) {
-                    throw new RangeError("The target platform could not be read. Did you forget to add it to the launch.json configuration arguments?");
-                } else {
-                    const sourcesStoragePath = path.join(this.projectRootPath, ".vscode", ".react");
-                    let extensionMessageSender = new em.ExtensionMessageSender();
-                    return Q({})
-                        .then(() => {
-                            generator.step("startPackager");
-                            return extensionMessageSender.sendMessage(em.ExtensionMessage.START_PACKAGER);
-                        })
-                        .then(() => {
-                            let scriptImporter = new ScriptImporter(sourcesStoragePath);
-                            return scriptImporter.downloadDebuggerWorker(sourcesStoragePath).then(() => {
-                                Log.logMessage("Downloaded debuggerWorker.js (Logic to run the React Native app) from the Packager.");
-                            });
-                        })
-                        // We've seen that if we don't prewarm the bundle cache, the app fails on the first attempt to connect to the debugger logic
-                        // and the user needs to Reload JS manually. We prewarm it to prevent that issue
-                        .then(() => {
-                            generator.step("prewarmBundleCache");
-                            return extensionMessageSender.sendMessage(em.ExtensionMessage.PREWARM_BUNDLE_CACHE, [runOptions.platform]);
-                        })
-                        .then(() => {
-                            generator.step("mobilePlatform.runApp");
-                            return mobilePlatform.runApp(runOptions);
-                        })
-                        .then(() => {
-                            generator.step("Starting App Worker");
-                            return new MultipleLifetimesAppWorker(sourcesStoragePath, runOptions.debugAdapterPort).start();
-                        }) // Start the app worker
-                        .then(() => {
-                            generator.step("mobilePlatform.enableJSDebuggingMode");
-                            return mobilePlatform.enableJSDebuggingMode(runOptions);
-                        }).then(() =>
-                            Log.logMessage("Debugging session started successfully."));
-                }
+                return TelemetryHelper.generate("launch", (generator) => {
+                    return this.internalLaunch(generator);
+                });
             });
-        });
     }
+
+    @measure()
+    private internalLaunch(generator: TelemetryGenerator): Q.Promise<void> {
+        const resolver = new PlatformResolver();
+        const runOptions = this.parseRunOptions();
+        const mobilePlatform = resolver.resolveMobilePlatform(runOptions.platform);
+        if (!mobilePlatform) {
+            throw new RangeError("The target platform could not be read. Did you forget to add it to the launch.json configuration arguments?");
+        } else {
+            const sourcesStoragePath = path.join(this.projectRootPath, ".vscode", ".react");
+            let extensionMessageSender = new em.ExtensionMessageSender();
+            return Q({})
+                .then(() => {
+                    generator.step("startPackager");
+                    return extensionMessageSender.sendMessage(em.ExtensionMessage.START_PACKAGER);
+                })
+                .then(() => {
+                    let scriptImporter = new ScriptImporter(sourcesStoragePath);
+                    return scriptImporter.downloadDebuggerWorker(sourcesStoragePath).then(() => {
+                        Log.logMessage("Downloaded debuggerWorker.js (Logic to run the React Native app) from the Packager.");
+                    });
+                })
+                // We've seen that if we don't prewarm the bundle cache, the app fails on the first attempt to connect to the debugger logic
+                // and the user needs to Reload JS manually. We prewarm it to prevent that issue
+                .then(() => {
+                    generator.step("prewarmBundleCache");
+                    return extensionMessageSender.sendMessage(em.ExtensionMessage.PREWARM_BUNDLE_CACHE, [runOptions.platform]);
+                })
+                .then(() => {
+                    generator.step("mobilePlatform.runApp");
+                    return mobilePlatform.runApp(runOptions);
+                })
+                .then(() => {
+                    generator.step("Starting App Worker");
+                    return new MultipleLifetimesAppWorker(sourcesStoragePath, runOptions.debugAdapterPort).start();
+                }) // Start the app worker
+                .then(() => {
+                    generator.step("mobilePlatform.enableJSDebuggingMode");
+                    return mobilePlatform.enableJSDebuggingMode(runOptions);
+                }).then(() =>
+                    Log.logMessage("Debugging session started successfully."));        }
+    };
 
     private getAppVersion() {
         return JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "package.json"), "utf-8")).version;

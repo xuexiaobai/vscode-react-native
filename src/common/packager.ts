@@ -10,6 +10,7 @@ import {Node} from "./node/node";
 import {Package} from "./node/package";
 import {PromiseUtil} from "./node/promise";
 import {Request} from "./node/request";
+import {measure} from "../common/node/measureTimeTaken";
 
 import * as Q from "q";
 import * as path from "path";
@@ -34,6 +35,7 @@ export class Packager {
     }
 
 
+    @measure()
     public start(): Q.Promise<void> {
         let executedStartPackagerCmd = false;
         return this.isRunning()
