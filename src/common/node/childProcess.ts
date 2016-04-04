@@ -5,6 +5,7 @@ import * as child_process from "child_process";
 import Q = require("q");
 import {ErrorHelper} from "../error/errorHelper";
 import {InternalErrorCode} from "../error/internalErrorCode";
+import {measure} from "./measureTimeTaken";
 
 export interface IExecResult {
     process: child_process.ChildProcess;
@@ -37,6 +38,7 @@ interface ISpawnOptions {
 }
 
 export class ChildProcess {
+    @measure()
     public exec(command: string, options: IExecOptions = {}): IExecResult {
         let outcome = Q.defer<Buffer>();
 
@@ -55,6 +57,7 @@ export class ChildProcess {
         return this.exec(command, options).outcome.then(stdout => stdout.toString());
     }
 
+    @measure()
     public spawnWithExitHandler(command: string, args?: string[], options: ISpawnOptions = {}): ISpawnResult {
         let outcome = Q.defer<void>();
         let commandWithArgs = command + " " + args.join(" ");
@@ -79,6 +82,7 @@ export class ChildProcess {
               outcome: outcome.promise };
     }
 
+    @measure()
     public spawn(command: string, args?: string[], options: ISpawnOptions = {}): ISpawnResult {
         let outcome = Q.defer<void>();
         let commandWithArgs = command + " " + args.join(" ");

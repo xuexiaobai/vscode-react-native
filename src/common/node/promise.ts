@@ -22,6 +22,25 @@ export class PromiseUtil {
         return this.retryAsyncIteration(operation, condition, maxRetries, 0, delay, failure);
     }
 
+    public reduce<T>(sources: T[]|Q.Promise<T[]>, generateAsyncOperation: (value: T) => Q.Promise<void>): Q.Promise<void> {
+        const promisedSources = <Q.Promise<T[]>>Q(sources);
+        return promisedSources.then(resolvedSources => {
+            return resolvedSources.reduce((previousReduction: Q.Promise<void>, newSource: T) => {
+                return previousReduction.then(() => {
+                    return generateAsyncOperation(newSource);
+                });
+            }, Q<void>(void 0));
+        });
+    }
+
+    /* Execute a callback after the promise or value is resolved. If promiseOrValue is a value the callback will
+       be called synchronically. If it's a promise it'll be called asynchronically. */
+    public executeAfter<T>(promiseOrValue: Q.Promise<T> | T, callback: (value: T) => void): Q.Promise<void> | void {
+        return Q.isPromise(promiseOrValue)
+            ? (<Q.Promise<T>>promiseOrValue).then(callback)
+            : callback(<T>promiseOrValue);
+    }
+
     private retryAsyncIteration<T>(operation: () => Q.Promise<T>, condition: (result: T) => boolean | Q.Promise<boolean>, maxRetries: number, iteration: number, delay: number, failure: string): Q.Promise<T> {
         return operation()
             .then(result => {

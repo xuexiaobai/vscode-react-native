@@ -11,6 +11,7 @@ import {FileSystem} from "../../common/node/fileSystem";
 import {ChildProcess} from "../../common/node/childProcess";
 
 import {TelemetryHelper} from "../../common/telemetryHelper";
+import {measure} from "../../common/node/measureTimeTaken";
 
 export class SimulatorPlist {
     private projectRoot: string;
@@ -31,6 +32,7 @@ export class SimulatorPlist {
         this.nodeChildProcess = nodeChildProcess;
     }
 
+    @measure()
     public findPlistFile(): Q.Promise<string> {
 
         return Q.all<any>([

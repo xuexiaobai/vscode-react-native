@@ -12,6 +12,7 @@ import {Log} from "../common/log/log";
 import {LogLevel} from "../common/log/logHelper";
 import {Node} from "../common/node/node";
 import {ExecutionsLimiter} from "../common/executionsLimiter";
+import {measure} from "../common/node/measureTimeTaken";
 
 import Module = require("module");
 
@@ -164,6 +165,7 @@ export class MultipleLifetimesAppWorker {
         console.assert(!!this.sourcesStoragePath, "The sourcesStoragePath argument was null or empty");
     }
 
+    @measure()
     public start(warnOnFailure: boolean = false): Q.Promise<any> {
         return this.createSocketToApp(warnOnFailure);
     }

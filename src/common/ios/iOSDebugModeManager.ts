@@ -6,6 +6,7 @@ import * as Q from "q";
 import {PromiseUtil} from "../../common/node/promise";
 import {PlistBuddy} from "./plistBuddy";
 import {SimulatorPlist} from "./simulatorPlist";
+import {measure} from "../node/measureTimeTaken";
 
 export class IOSDebugModeManager {
     public static WEBSOCKET_EXECUTOR_NAME = "RCTWebSocketExecutor";
@@ -21,6 +22,7 @@ export class IOSDebugModeManager {
         this.simulatorPlist = new SimulatorPlist(this.projectRoot);
     }
 
+    @measure()
     public setSimulatorJSDebuggingModeSetting(enable: boolean): Q.Promise<void> {
         const plistBuddy = new PlistBuddy();
 
@@ -36,6 +38,7 @@ export class IOSDebugModeManager {
             });
     }
 
+    @measure()
     public getSimulatorJSDebuggingModeSetting(): Q.Promise<string> {
         return this.findPListFile().then((plistFile: string) => {
             // Attempt to read from the file, but if the property is not defined then return the empty string
@@ -44,6 +47,7 @@ export class IOSDebugModeManager {
         });
     }
 
+    @measure()
     public findPListFile(): Q.Promise<string> {
         const pu = new PromiseUtil();
         const failureString = `Unable to find plist file to configure debugging`;
@@ -58,6 +62,7 @@ export class IOSDebugModeManager {
             failureString); // Error to show in case all retries fail
     }
 
+    @measure()
     private tryOneAttemptToFindPListFile() {
         return this.simulatorPlist.findPlistFile().catch((): string => null);
     }

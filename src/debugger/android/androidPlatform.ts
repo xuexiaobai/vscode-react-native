@@ -12,6 +12,7 @@ import {PackageNameResolver} from "../../common/android/packageNameResolver";
 import {OutputVerifier, PatternToFailure} from "../../common/outputVerifier";
 import {DeviceHelper, IDevice} from "../../common/android/deviceHelper";
 import {Package} from "../../common/node/package";
+import {measure} from "../../common/node/measureTimeTaken";
 
 /**
  * Android specific platform implementation for debugging RN applications.
@@ -41,6 +42,7 @@ export class AndroidPlatform implements IAppPlatform {
         this.deviceHelper = new DeviceHelper();
     }
 
+    @measure()
     public runApp(runOptions: IRunOptions): Q.Promise<void> {
         let cexec = new CommandExecutor(runOptions.projectRoot);
 
@@ -71,6 +73,7 @@ export class AndroidPlatform implements IAppPlatform {
                     Log.logWarning("Couldn't start LogCat monitor", error)));
     }
 
+    @measure()
     public enableJSDebuggingMode(runOptions: IRunOptions): Q.Promise<void> {
         return this.deviceHelper.reloadAppInDebugMode(runOptions.projectRoot, this.packageName, this.debugTarget);
     }

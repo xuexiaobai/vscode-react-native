@@ -14,6 +14,7 @@ import {IRunOptions} from "../../common/launchArgs";
 import {PlistBuddy} from "../../common/ios/plistBuddy";
 import {IOSDebugModeManager} from "../../common/ios/iOSDebugModeManager";
 import {OutputVerifier, PatternToFailure} from "../../common/outputVerifier";
+import {measure} from "../../common/node/measureTimeTaken";
 
 export class IOSPlatform implements IAppPlatform {
     private static deviceString = "device";
@@ -32,6 +33,7 @@ export class IOSPlatform implements IAppPlatform {
 
     private static RUN_IOS_SUCCESS_PATTERNS = ["BUILD SUCCEEDED"];
 
+    @measure()
     public runApp(launchArgs: IRunOptions): Q.Promise<void> {
         // Compile, deploy, and launch the app on either a simulator or a device
         this.consumeArguments(launchArgs);
@@ -59,6 +61,7 @@ export class IOSPlatform implements IAppPlatform {
         });
     }
 
+    @measure()
     public enableJSDebuggingMode(launchArgs: IRunOptions): Q.Promise<void> {
         // Configure the app for debugging
         this.consumeArguments(launchArgs);
