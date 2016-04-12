@@ -20,7 +20,7 @@ export class DeviceRunner {
 
     public run(): Q.Promise<void> {
         const proxyPort = 9999;
-        const appLaunchStepTimeout = 5000;
+        const appLaunchStepTimeout = 60000;
         return new PlistBuddy().getBundleId(this.projectRoot, /*simulator=*/false)
             .then((bundleId: string) => this.getPathOnDevice(bundleId))
             .then((path: string) =>
@@ -53,6 +53,7 @@ export class DeviceRunner {
 
         socket.on("data", (data: any): void => {
             data = data.toString();
+            console.log(`Jimmy's data ${data}`);
             while (data[0] === "+") { data = data.substring(1); }
             // Acknowledge any packets sent our way
             if (data[0] === "$") {
@@ -122,7 +123,7 @@ export class DeviceRunner {
                 deferred2.reject(new Error("Timeout launching application. Is the device locked?"));
             }, appLaunchStepTimeout);
             return deferred2.promise;
-        }).then((sock: net.Socket): Q.Promise<net.Socket> => {
+        }).then((sock: net.Socket): void => {
             // Continue execution; actually start the app running.
             const cmd: string = this.makeGdbCommand("c");
             initState++;
@@ -130,7 +131,7 @@ export class DeviceRunner {
             setTimeout(function(): void {
                 deferred3.reject(new Error("Timeout launching application. Is the device locked?"));
             }, appLaunchStepTimeout);
-            return deferred3.promise;
+            return ;
         }).then(() => packagePath);
     }
 

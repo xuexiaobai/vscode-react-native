@@ -5,6 +5,8 @@ import * as nodeChildProcess from "child_process";
 import Q = require("q");
 import {ErrorHelper} from "../error/errorHelper";
 import {InternalErrorCode} from "../error/internalErrorCode";
+import {Log} from "../log/log";
+import {LogLevel} from "../log/logHelper";
 
 export interface IExecResult {
     process: nodeChildProcess.ChildProcess;
@@ -48,6 +50,8 @@ export class ChildProcess {
     public exec(command: string, options: IExecOptions = {}): IExecResult {
         let outcome = Q.defer<Buffer>();
 
+        this.printExecStatus("Executing", command, options);
+
         let execProcess = this.childProcess.exec(command, options, (error: Error, stdout: Buffer, stderr: Buffer) => {
             if (error) {
                 outcome.reject(ErrorHelper.getNestedError(error, InternalErrorCode.CommandFailed, command));
@@ -56,7 +60,15 @@ export class ChildProcess {
             }
         });
 
-        return { process: execProcess, outcome: outcome.promise };
+        const finalOutcome = outcome.promise.then(stdout => {
+            this.printExecStatus("Succesfully executed", command, options, () => "\nOutput: " + stdout);
+            return stdout;
+        }, error => {
+            this.printExecStatus("Error while executing", command, options, () => "\nError: " + error);
+            return Q.reject<Buffer>(error);
+        });
+
+        return { process: execProcess, outcome: finalOutcome };
     }
 
     public execToString(command: string, options: IExecOptions = {}): Q.Promise<string> {
@@ -67,6 +79,7 @@ export class ChildProcess {
         const startup = Q.defer<void>();
         const outcome = Q.defer<void>();
 
+        Log.logInternalLazyMessage(LogLevel.Info, () => `Spawning \"${command} ${args.join(" ")}\" with options: ${JSON.stringify(options)}`);
         const spawnedProcess = this.childProcess.spawn(command, args, options);
 
         spawnedProcess.once("error", (error: any) => {
@@ -96,5 +109,9 @@ export class ChildProcess {
               startup: startup.promise,
               outcome: outcome.promise,
        };
+    }
+
+    private printExecStatus(statusTitle: string, command: string, options: IExecOptions, additionalDetails: () => string = () => "") {
+        Log.logInternalLazyMessage(LogLevel.Info, () => `${statusTitle} "${command}" with options ${JSON.stringify(options)}${additionalDetails()}`);
     }
 }

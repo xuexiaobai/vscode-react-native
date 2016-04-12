@@ -50,8 +50,12 @@ export module Log {
      * them to them.
      */
     export function logInternalMessage(logLevel: LogLevel, message: string) {
+        this.logInternalLazyMessage(logLevel, () => message);
+    }
+
+    export function logInternalLazyMessage(logLevel: LogLevel, messageGenerator: () => string) {
         if (LogHelper.logLevel >= logLevel) {
-            globalLogger.logInternalMessage(logLevel, message);
+            globalLogger.logInternalMessage(logLevel, messageGenerator());
         }
     }
 
