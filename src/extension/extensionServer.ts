@@ -117,7 +117,7 @@ export class ExtensionServer implements vscode.Disposable {
     private queryAttachOnlyMode(): Q.Promise<boolean> {
         const currentValue = this.isOnAttachOnlyMode;
         this.isOnAttachOnlyMode = false;
-        return currentValue;
+        return Q(currentValue);
     }
 
     /**
